@@ -7,23 +7,20 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-type Database struct {
-	boltDB *bolt.DB
-}
+var db *bolt.DB
 
-func NewDB(dbName string) (*Database, error) {
-	db, err := bolt.Open(dbName, 0600, nil)
+func NewDB(dbName string) error {
+	var err error
+	db, err = bolt.Open(dbName, 0600, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return &Database{
-		boltDB: db,
-	}, nil
+	return nil
 }
 
-func (db *Database) createBucketDB(bucketName string) error {
-	err := db.boltDB.Update(func(tx *bolt.Tx) error {
+func createBucketDB(bucketName string) error {
+	err := db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)
@@ -40,8 +37,8 @@ func (db *Database) createBucketDB(bucketName string) error {
 	return nil
 }
 
-func (db *Database) updateDB(bucketName, key, value []byte) error {
-	err := db.boltDB.Update(func(tx *bolt.Tx) error {
+func updateDB(bucketName, key, value []byte) error {
+	err := db.Update(func(tx *bolt.Tx) error {
 		bkt, err := tx.CreateBucketIfNotExists(bucketName)
 		if err != nil {
 			return err
@@ -61,8 +58,8 @@ func (db *Database) updateDB(bucketName, key, value []byte) error {
 	return nil
 }
 
-func (db *Database) queryDB(bucketName, key []byte) (val []byte, length int) {
-	err := db.boltDB.View(func(tx *bolt.Tx) error {
+func queryDB(bucketName, key []byte) (val []byte, length int) {
+	err := db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(bucketName)
 		if bkt == nil {
 			return fmt.Errorf("Bucket %q not found!", bucketName)
@@ -79,8 +76,8 @@ func (db *Database) queryDB(bucketName, key []byte) (val []byte, length int) {
 
 }
 
-func (db *Database) iterateDB(bucketName []byte) {
-	err := db.boltDB.View(func(tx *bolt.Tx) error {
+func iterateDB(bucketName []byte) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
 
 		c := b.Cursor()
@@ -92,12 +89,14 @@ func (db *Database) iterateDB(bucketName []byte) {
 	})
 
 	if err != nil {
-		log.Fatalf("failure : %s\n", err)
+		return err
 	}
+
+	return nil
 }
 
-func (db *Database) deleteKey(bucketName, keyName []byte) error {
-	err := db.boltDB.Update(func(tx *bolt.Tx) error {
+func deleteKey(bucketName, keyName []byte) error {
+	err := db.Update(func(tx *bolt.Tx) error {
 
 		b := tx.Bucket(bucketName)
 		err := b.Delete(keyName)
@@ -113,6 +112,6 @@ func (db *Database) deleteKey(bucketName, keyName []byte) error {
 	return nil
 }
 
-func (db *Database) CloseDB() {
-	db.boltDB.Close()
+func CloseDB() {
+	db.Close()
 }

@@ -9,39 +9,39 @@ import (
 
 func createRandomUserEmail() UserEmail {
 	return UserEmail{
-		email:    util.RandomMail(),
-		password: util.RandomPassword(),
+		Email:    util.RandomMail(),
+		Password: util.RandomPassword(),
 	}
 }
 
 func TestInitEmailBucket(t *testing.T) {
-	err := testDB.InitEmailBucket()
+	err := InitEmailBucket()
 	require.NoError(t, err)
 }
 
 func TestAddUserEmail(t *testing.T) {
 	userEmail := createRandomUserEmail()
-	err := testDB.AddUserEmail(userEmail)
+	err := AddUserEmail(userEmail)
 	require.NoError(t, err)
 
 	// try to get pw after add
-	pw, le := testDB.GetPassword(userEmail)
+	pw, le := GetPassword(userEmail)
 	require.NotZero(t, le)
-	require.Equal(t, len(userEmail.password), le)
+	require.Equal(t, len(userEmail.Password), le)
 	require.NotEmpty(t, pw)
-	require.Equal(t, userEmail.password, string(pw))
+	require.Equal(t, userEmail.Password, string(pw))
 }
 
 func TestRemoveUserEmail(t *testing.T) {
 	userEmail := createRandomUserEmail()
-	err := testDB.AddUserEmail(userEmail)
+	err := AddUserEmail(userEmail)
 	require.NoError(t, err)
 
-	err = testDB.RemoveUserEmail(userEmail)
+	err = RemoveUserEmail(userEmail)
 	require.NoError(t, err)
 
 	// try to get pw after remove
-	pw, le := testDB.GetPassword(userEmail)
+	pw, le := GetPassword(userEmail)
 	require.Zero(t, le)
 	require.Equal(t, 0, le)
 	require.Empty(t, pw)
@@ -50,27 +50,27 @@ func TestRemoveUserEmail(t *testing.T) {
 
 func TestGetPassword(t *testing.T) {
 	userEmail := createRandomUserEmail()
-	err := testDB.AddUserEmail(userEmail)
+	err := AddUserEmail(userEmail)
 	require.NoError(t, err)
 
-	pw, le := testDB.GetPassword(userEmail)
+	pw, le := GetPassword(userEmail)
 	require.NotZero(t, le)
-	require.Equal(t, len(userEmail.password), le)
+	require.Equal(t, len(userEmail.Password), le)
 	require.NotEmpty(t, pw)
-	require.Equal(t, userEmail.password, string(pw))
+	require.Equal(t, userEmail.Password, string(pw))
 }
 
 func TestChangeMailPassword(t *testing.T) {
 	userEmail := createRandomUserEmail()
 	newPassword := util.RandomPassword()
 
-	err := testDB.AddUserEmail(userEmail)
+	err := AddUserEmail(userEmail)
 	require.NoError(t, err)
 
-	err = testDB.ChangeMailPassword(userEmail, newPassword)
+	err = ChangeMailPassword(userEmail, newPassword)
 	require.NoError(t, err)
 
-	pw, le := testDB.GetPassword(userEmail)
+	pw, le := GetPassword(userEmail)
 	require.NotZero(t, le)
 	require.NotEmpty(t, pw)
 	require.Equal(t, len(newPassword), le)

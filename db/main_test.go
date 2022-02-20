@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testDB *Database
-
 const test_bucket = "test_bucket"
 
 func generateRandomKeyValuePair() (string, string) {
@@ -20,7 +18,7 @@ func generateRandomKeyValuePair() (string, string) {
 
 func TestMain(m *testing.M) {
 	var err error
-	testDB, err = NewDB("test")
+	err = NewDB("test")
 	if err != nil {
 		log.Fatal("db connection is failed:", err)
 	}
@@ -28,18 +26,18 @@ func TestMain(m *testing.M) {
 }
 
 func TestCreateBucket(t *testing.T) {
-	err := testDB.createBucketDB(test_bucket)
+	err := createBucketDB(test_bucket)
 	require.NoError(t, err)
 }
 
 func TestUpdateDB(t *testing.T) {
 	randomKey, randomVal := generateRandomKeyValuePair()
-	err := testDB.updateDB([]byte(test_bucket), []byte(randomKey), []byte(randomVal))
+	err := updateDB([]byte(test_bucket), []byte(randomKey), []byte(randomVal))
 
 	require.NoError(t, err)
 
 	// get and test it
-	val, length := testDB.queryDB([]byte(test_bucket), []byte(randomKey))
+	val, length := queryDB([]byte(test_bucket), []byte(randomKey))
 
 	require.Equal(t, randomVal, string(val))
 	require.NotZero(t, len(randomVal), length)
@@ -48,28 +46,33 @@ func TestUpdateDB(t *testing.T) {
 
 func TestDeleteKey(t *testing.T) {
 	randomKey, randomVal := generateRandomKeyValuePair()
-	err := testDB.updateDB([]byte(test_bucket), []byte(randomKey), []byte(randomVal))
+	err := updateDB([]byte(test_bucket), []byte(randomKey), []byte(randomVal))
 	require.NoError(t, err)
 
 	// delete
-	err = testDB.deleteKey([]byte(test_bucket), []byte(randomKey))
+	err = deleteKey([]byte(test_bucket), []byte(randomKey))
 	require.NoError(t, err)
 
 	// try to get deleted key-val pair
-	val, length := testDB.queryDB([]byte(test_bucket), []byte(randomKey))
+	val, length := queryDB([]byte(test_bucket), []byte(randomKey))
 	require.Empty(t, val)
 	require.Zero(t, length)
 }
 
 func TestQueryDB(t *testing.T) {
 	randomKey, randomVal := generateRandomKeyValuePair()
-	err := testDB.updateDB([]byte(test_bucket), []byte(randomKey), []byte(randomVal))
+	err := updateDB([]byte(test_bucket), []byte(randomKey), []byte(randomVal))
 	require.NoError(t, err)
 
-	val, length := testDB.queryDB([]byte(test_bucket), []byte(randomKey))
+	val, length := queryDB([]byte(test_bucket), []byte(randomKey))
 	require.NotEmpty(t, val)
 	require.NotZero(t, length)
 	require.NotEmpty(t, val)
 	require.Equal(t, randomVal, string(val))
 
+}
+
+func TestIterateDB(t *testing.T) {
+	err := iterateDB([]byte(test_bucket))
+	require.NoError(t, err)
 }
