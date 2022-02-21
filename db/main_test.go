@@ -71,8 +71,3 @@ func TestQueryDB(t *testing.T) {
 	require.Equal(t, randomVal, string(val))
 
 }
-
-func TestIterateDB(t *testing.T) {
-	err := iterateDB([]byte(test_bucket))
-	require.NoError(t, err)
-}
