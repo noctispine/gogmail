@@ -5,16 +5,63 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/fatih/color"
+	"github.com/manifoldco/promptui"
 	"github.com/noctispine/go-email-app/db"
 	"github.com/spf13/cobra"
 )
+
+// get user email with using prompt
+func promptEmail() (string, error) {
+	validate := func(input string) error {
+		if len(input) < 3 {
+			return errors.New("Email length must be at least 3")
+		}
+
+		return nil
+	}
+
+	prompt := promptui.Prompt{
+		Label:    "Email",
+		Validate: validate,
+	}
+
+	email, err := prompt.Run()
+	if err != nil {
+		return "", err
+	}
+
+	return email, nil
+}
+
+// get user password with using prompt
+func promptPassword() (string, error) {
+	validate := func(input string) error {
+		if len(input) < 1 {
+			return errors.New("Password must have more than 0 characters")
+		}
+		return nil
+	}
+
+	prompt := promptui.Prompt{
+		Label:    "Password",
+		Validate: validate,
+		Mask:     '*',
+	}
+
+	pw, err := prompt.Run()
+
+	if err != nil {
+		fmt.Printf("Prompt failed %v\n", err)
+		return "", err
+	}
+
+	return pw, nil
+}
 
 // add emails from command line args (when flag secure == false)
 func addEmailsFromArgs(args []string) error {
@@ -37,20 +84,19 @@ func addEmailsFromArgs(args []string) error {
 // it conceales email's password whiles user writing
 func addEmailsWithSecureFlag() error {
 	var userEmail db.UserEmail
-	fmt.Printf("Email:")
-	fmt.Scanln(&userEmail.Email)
+	var err error
 
-	fmt.Printf("Password:")
-	color.Set(color.Concealed)
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
-	line := scanner.Text()
-	userEmail.Password = line
+	userEmail.Email, err = promptEmail()
+	if err != nil {
+		return err
+	}
 
-	userEmail.Password = line
-	color.Unset()
+	userEmail.Password, err = promptPassword()
+	if err != nil {
+		return err
+	}
 
-	err := db.AddUserEmail(userEmail)
+	err = db.AddUserEmail(userEmail)
 	if err != nil {
 		return err
 	}
@@ -72,9 +118,8 @@ var addCmd = &cobra.Command{
 		if err != nil {
 			return errors.New("flag secure cannot parsed")
 		}
-
-		if (!sec && len(args) != 0) && (len(args)%2 == 1) {
-			return errors.New("arguments length should be even number and not equal to 0")
+		if ((!sec && (len(args) == 0)) || !sec && (len(args) != 0)) && (len(args)%2 == 0) {
+			return errors.New("arguments length should be even number")
 		}
 
 		return nil
@@ -97,7 +142,7 @@ var addCmd = &cobra.Command{
 			log.Fatal("Error occured while trying to add email(s) to db")
 		}
 
-		color.Green("Emails Successfully Added")
+		color.Green("Email(s) Successfully Added")
 
 	},
 }
@@ -105,13 +150,6 @@ var addCmd = &cobra.Command{
 func init() {
 	userCmd.AddCommand(addCmd)
 	addCmd.Flags().BoolP("secure", "s", false, "hide your password when adding")
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// addCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// addCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	addCmd.SetUsageTemplate(rootCmd.Name() + "Usage: user add [email1] [password1] [email2] [password2]...\n" +
+		"\nFlags:\n" + addCmd.Flags().FlagUsages())
 }
