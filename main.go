@@ -11,5 +11,6 @@ import (
 
 func main() {
 	db.NewDB("local_mails")
+	defer db.CloseDB()
 	cmd.Execute()
 }
