@@ -36,8 +36,8 @@ func AddUserEmail(userEmail UserEmail) error {
 }
 
 // remove mail-passowrd pair from the bucket
-func RemoveUserEmail(userEmail UserEmail) error {
-	err := deleteKey([]byte(DEFAULT_EMAIL_BUCKET_NAME), []byte(userEmail.Email))
+func RemoveUserEmail(key string) error {
+	err := deleteKey([]byte(DEFAULT_EMAIL_BUCKET_NAME), []byte(key))
 	if err != nil {
 		return err
 
@@ -51,7 +51,7 @@ func RemoveUserEmail(userEmail UserEmail) error {
 // then add a new pair with new Password
 func ChangeMailPassword(userEmail UserEmail, newPassword string) error {
 
-	err := RemoveUserEmail(userEmail)
+	err := RemoveUserEmail(userEmail.Email)
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,6 @@ func GetPassword(userEmail UserEmail) (string, int) {
 
 // for testing purposes
 func IterateEmailBucket() error {
-	fmt.Println("Added Emails:")
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(DEFAULT_EMAIL_BUCKET_NAME))
 
@@ -101,4 +100,26 @@ func IterateEmailBucket() error {
 	}
 
 	return nil
+}
+
+func MakeSliceFromEmailBucket() ([]UserEmail, error) {
+	emails := make([]UserEmail, 0, 0)
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(DEFAULT_EMAIL_BUCKET_NAME))
+		c := b.Cursor()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			userEmail := UserEmail{
+				Email:    string(k),
+				Password: string(v),
+			}
+			emails = append(emails, userEmail)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return emails, nil
 }

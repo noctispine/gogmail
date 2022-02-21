@@ -37,7 +37,7 @@ func TestRemoveUserEmail(t *testing.T) {
 	err := AddUserEmail(userEmail)
 	require.NoError(t, err)
 
-	err = RemoveUserEmail(userEmail)
+	err = RemoveUserEmail(userEmail.Email)
 	require.NoError(t, err)
 
 	// try to get pw after remove
@@ -81,4 +81,11 @@ func TestChangeMailPassword(t *testing.T) {
 func TestIterateEmailBucket(t *testing.T) {
 	err := IterateEmailBucket()
 	require.NoError(t, err)
+}
+
+func TestMakeSliceFromEmailBucket(t *testing.T) {
+	emails, err := MakeSliceFromEmailBucket()
+	require.NoError(t, err)
+
+	require.NotEmpty(t, emails)
 }
