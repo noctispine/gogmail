@@ -77,3 +77,8 @@ func TestChangeMailPassword(t *testing.T) {
 	require.Equal(t, newPassword, pw)
 
 }
+
+func TestIterateEmailBucket(t *testing.T) {
+	err := IterateEmailBucket()
+	require.NoError(t, err)
+}

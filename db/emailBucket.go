@@ -1,5 +1,12 @@
 package db
 
+import (
+	"fmt"
+
+	"github.com/boltdb/bolt"
+	"github.com/fatih/color"
+)
+
 const DEFAULT_EMAIL_BUCKET_NAME = "my_emails"
 
 type UserEmail struct {
@@ -69,6 +76,29 @@ func GetPassword(userEmail UserEmail) (string, int) {
 }
 
 // for testing purposes
-func IterateEmailBucket() {
-	iterateDB([]byte(DEFAULT_EMAIL_BUCKET_NAME))
+func IterateEmailBucket() error {
+	fmt.Println("Added Emails:")
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(DEFAULT_EMAIL_BUCKET_NAME))
+
+		c := b.Cursor()
+
+		i := 0
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			if i%2 == 1 {
+				color.Set(color.ReverseVideo)
+			}
+			fmt.Printf("%d: %s : %s\n", i, k, v)
+
+			color.Unset()
+			i++
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
