@@ -7,57 +7,11 @@ package cmd
 import (
 	"errors"
 	"log"
-	"strings"
 
-	"github.com/manifoldco/promptui"
+	helper "github.com/noctispine/go-email-app/cmd/helpers"
 	"github.com/noctispine/go-email-app/db"
 	"github.com/spf13/cobra"
 )
-
-func replaceFirstAndLastElementOfEmailSlice(data []db.UserEmail) {
-	temp := data[0]
-	data[0] = data[len(data)-1]
-	data[len(data)-1] = temp
-}
-
-func promptSelectEmail(emails []db.UserEmail, size int, showPw bool) promptui.Select {
-
-	emails = append(emails)
-	searcher := func(input string, index int) bool {
-		email := emails[index]
-		emailAddress := strings.Replace(strings.ToLower(email.Email), " ", "", -1)
-		input = strings.Replace(strings.ToLower(input), " ", "", -1)
-		return strings.Contains(emailAddress, input)
-	}
-
-	// set custom template's active and inactive field
-	// accordingly flag password (which enables to print passwords)
-	// when user want to list
-	var activeField, inActiveField string
-	if showPw {
-		activeField = "\U000027A4  {{ .Email | cyan }} ({{ .Password | red }})"
-		inActiveField = "  {{ .Email | cyan }} ({{ .Password | red }})"
-	} else {
-		activeField = "\U000027A4  ({{ .Email | cyan }})"
-		inActiveField = "  ({{ .Email | cyan }}) "
-	}
-
-	templates := &promptui.SelectTemplates{
-		Label:    "{{ . }}?",
-		Active:   activeField,
-		Inactive: inActiveField,
-	}
-
-	prompt := promptui.Select{
-		Label:     "Emails",
-		Items:     emails,
-		Searcher:  searcher,
-		Templates: templates,
-		Size:      size,
-	}
-
-	return prompt
-}
 
 // list
 
@@ -66,23 +20,19 @@ func listAndRemoveEmails(showPw bool, size int) error {
 	var err error
 	var emails []db.UserEmail
 
-	quitOpt := db.UserEmail{
-		Email:    "Quit",
-		Password: "Quit",
+	emails, err = db.MakeSliceFromEmailBucket()
+	if err != nil {
+		return err
 	}
+	helper.AddQuitOptionToEmailSlice(emails)
 
 	quit := false
+
+	i := 0
 	for !quit {
-		emails, err = db.MakeSliceFromEmailBucket()
-		if err != nil {
-			return err
-		}
-		emails = append(emails, quitOpt)
-		replaceFirstAndLastElementOfEmailSlice(emails)
+		selectPrompt := helper.SelectEmail(emails, size, showPw, i)
 
-		selectPrompt := promptSelectEmail(emails, size, showPw)
-
-		i, _, err := selectPrompt.Run()
+		i, _, err = selectPrompt.Run()
 		if err != nil {
 			return err
 		}
@@ -95,6 +45,10 @@ func listAndRemoveEmails(showPw bool, size int) error {
 			err = db.RemoveUserEmail(emails[i].Email)
 			if err != nil {
 				return err
+			}
+			emails[i] = db.UserEmail{
+				Email:    "DELETED",
+				Password: "DELETED",
 			}
 		}
 	}
@@ -190,7 +144,7 @@ func init() {
 	removeCmd.Flags().IntP("size", "s", 10, "page size, it must be used with list flag")
 	removeCmd.Flags().BoolP("password", "p", false, "list emails with passwords, it must be used with list flag")
 	removeCmd.Flags().BoolP("list", "l", false, "prompt option to select emails that will be removed")
-	removeCmd.SetUsageTemplate(rootCmd.Name() + "Usage: user remove [email1] [email2] [email3...]\n" +
+	removeCmd.SetUsageTemplate(rootCmd.Name() + "Usage: user remove [email1] [email2] [email3...] or user remove [flags]\n" +
 		"\nFlags:\n" + removeCmd.Flags().FlagUsages())
 
 }
