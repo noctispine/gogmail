@@ -5,8 +5,6 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
@@ -15,9 +13,6 @@ var userCmd = &cobra.Command{
 	Use:   "user",
 	Short: "Settings",
 	Long:  `Add, remove, update or list your local savings`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("conf called")
-	},
 }
 
 func init() {
