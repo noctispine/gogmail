@@ -103,7 +103,9 @@ func IterateEmailBucket() error {
 }
 
 func MakeSliceFromEmailBucket() ([]UserEmail, error) {
-	emails := make([]UserEmail, 0, 0)
+	// it should be at least 1 len because we add quit option
+	// no matter there is emails or not
+	emails := make([]UserEmail, 0, 10)
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(DEFAULT_EMAIL_BUCKET_NAME))
 		c := b.Cursor()
