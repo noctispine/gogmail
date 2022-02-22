@@ -6,62 +6,13 @@ package cmd
 
 import (
 	"errors"
-	"fmt"
 	"log"
 
 	"github.com/fatih/color"
-	"github.com/manifoldco/promptui"
+	helper "github.com/noctispine/go-email-app/cmd/helpers"
 	"github.com/noctispine/go-email-app/db"
 	"github.com/spf13/cobra"
 )
-
-// get user email with using prompt
-func promptEmail() (string, error) {
-	validate := func(input string) error {
-		if len(input) < 3 {
-			return errors.New("Email length must be at least 3")
-		}
-
-		return nil
-	}
-
-	prompt := promptui.Prompt{
-		Label:    "Email",
-		Validate: validate,
-	}
-
-	email, err := prompt.Run()
-	if err != nil {
-		return "", err
-	}
-
-	return email, nil
-}
-
-// get user password with using prompt
-func promptPassword() (string, error) {
-	validate := func(input string) error {
-		if len(input) < 1 {
-			return errors.New("Password must have more than 0 characters")
-		}
-		return nil
-	}
-
-	prompt := promptui.Prompt{
-		Label:    "Password",
-		Validate: validate,
-		Mask:     '*',
-	}
-
-	pw, err := prompt.Run()
-
-	if err != nil {
-		fmt.Printf("Prompt failed %v\n", err)
-		return "", err
-	}
-
-	return pw, nil
-}
 
 // add emails from command line args (when flag secure == false)
 func addEmailsFromArgs(args []string) error {
@@ -86,12 +37,12 @@ func addEmailsWithSecureFlag() error {
 	var userEmail db.UserEmail
 	var err error
 
-	userEmail.Email, err = promptEmail()
+	userEmail.Email, err = helper.PromptEmail()
 	if err != nil {
 		return err
 	}
 
-	userEmail.Password, err = promptPassword()
+	userEmail.Password, err = helper.PromptPassword(1)
 	if err != nil {
 		return err
 	}
@@ -118,7 +69,9 @@ var addCmd = &cobra.Command{
 		if err != nil {
 			return errors.New("flag secure cannot parsed")
 		}
-		if ((!sec && (len(args) == 0)) || !sec && (len(args) != 0)) && (len(args)%2 == 0) {
+		if !sec && len(args) == 0 {
+			return errors.New("please provide email and password")
+		} else if (!sec && (len(args) != 0)) && (len(args)%2 == 1) {
 			return errors.New("arguments length should be even number")
 		}
 
