@@ -121,14 +121,13 @@ var addCmd = &cobra.Command{
 	Also it is possible to conceal client_id with enabling
 	secure flag (but user can add only one email).`,
 	Args: func(cmd *cobra.Command, args []string) error {
-		sec, err := cmd.Flags().GetBool("secure")
-		log.Println(len(args))
+		prompt, err := cmd.Flags().GetBool("prompt")
 		if err != nil {
 			return errors.New("flag secure cannot parsed")
 		}
-		if !sec && len(args) == 0 {
+		if !prompt && len(args) == 0 {
 			return errors.New("please provide email and password")
-		} else if (!sec && (len(args) != 0)) && (len(args)%5 != 0) {
+		} else if (!prompt && (len(args) != 0)) && (len(args)%5 != 0) {
 			return errors.New("arguments length should be even number")
 		}
 
@@ -137,12 +136,12 @@ var addCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// check if user enabled secure flag
-		sec, err := cmd.Flags().GetBool("secure")
+		prompt, err := cmd.Flags().GetBool("prompt")
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		if sec {
+		if prompt {
 			err = addEmailsWithSecureFlag()
 		} else {
 			err = addEmailsFromArgs(args)
@@ -159,7 +158,7 @@ var addCmd = &cobra.Command{
 
 func init() {
 	userCmd.AddCommand(addCmd)
-	addCmd.Flags().BoolP("secure", "s", false, "hide your password when adding")
+	addCmd.Flags().BoolP("prompt", "p", false, "hide your password when adding")
 	addCmd.SetUsageTemplate(rootCmd.Name() + " add [email] [client_id] [client_secret] [refresh_token] [access_token]... or add [flags]\n" +
 		"\nFlags:\n" + addCmd.Flags().FlagUsages())
 }
