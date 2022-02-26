@@ -6,10 +6,42 @@ import (
 	"strings"
 
 	"github.com/manifoldco/promptui"
-	"github.com/noctispine/go-email-app/db"
+	"github.com/noctispine/gogmail/db"
 )
 
-func SelectEmail(emails []db.UserEmail, size int, showPw bool, cursorPos_optional ...int) promptui.Select {
+type PromptUserDetails struct {
+	EmailAddress string
+	ClientID     string
+}
+
+// func ConstructEmail() (gservice.Email, error) {
+// 	var err error
+// 	var to, subject, body string
+// 	var email gservice.Email
+
+// 	// to, err = PromptField("To", 3)
+// 	if err != nil {
+// 		return email, err
+// 	}
+
+// 	// subject, err = PromptField("subject", 0)
+// 	if err != nil {
+// 		return email, err
+// 	}
+
+// 	// body, err = PromptField("body", 0)
+// 	if err != nil {
+// 		return email, err
+// 	}
+
+// 	email.To = to
+// 	email.Subject = subject
+// 	email.Body = body
+
+// 	return email, nil
+// }
+
+func SelectUser(emails []db.User, size int, showPw bool, cursorPos_optional ...int) promptui.Select {
 	cursorPos := 0
 
 	if len(cursorPos_optional) > 0 {
@@ -18,7 +50,7 @@ func SelectEmail(emails []db.UserEmail, size int, showPw bool, cursorPos_optiona
 
 	searcher := func(input string, index int) bool {
 		email := emails[index]
-		emailAddress := strings.Replace(strings.ToLower(email.Email), " ", "", -1)
+		emailAddress := strings.Replace(strings.ToLower(email.EmailAddress), " ", "", -1)
 		input = strings.Replace(strings.ToLower(input), " ", "", -1)
 		return strings.Contains(emailAddress, input)
 	}
@@ -28,11 +60,11 @@ func SelectEmail(emails []db.UserEmail, size int, showPw bool, cursorPos_optiona
 	// when user want to list
 	var activeField, inActiveField string
 	if showPw {
-		activeField = "\U000027A4  {{ .Email | cyan }} ({{ .Password | red }})"
-		inActiveField = "  {{ .Email | cyan }} ({{ .Password | red }})"
+		activeField = "\U000027A4  {{ .EmailAddress | cyan }} ({{ .Infos.ClientID | red }})"
+		inActiveField = "  {{ .EmailAddress | cyan }} ({{ .Infos.ClientID | red }})"
 	} else {
-		activeField = "\U000027A4  ({{ .Email | cyan }})"
-		inActiveField = "  ({{ .Email | cyan }}) "
+		activeField = "\U000027A4  ({{ .EmailAddress | cyan }})"
+		inActiveField = "  ({{ .EmailAddress | cyan }}) "
 	}
 
 	templates := &promptui.SelectTemplates{
@@ -53,14 +85,14 @@ func SelectEmail(emails []db.UserEmail, size int, showPw bool, cursorPos_optiona
 	return prompt
 }
 
-func AddQuitOptionToEmailSlice(emails []db.UserEmail) {
-	quitOpt := db.UserEmail{
-		Email:    "Quit",
-		Password: "Quit",
+func AddQuitOptionToEmailSlice(emails []db.User) {
+	quitOpt := db.User{
+		EmailAddress: "Quit",
 	}
 
 	emails = append(emails, quitOpt)
-	replaceFirstAndLastElementOfEmailSlice(emails)
+
+	replaceFirstAndLastElementOfSlice(emails)
 
 }
 
@@ -87,31 +119,20 @@ func PromptEmail() (string, error) {
 	return email, nil
 }
 
-// get password with using prompt
-func PromptPassword(minumumLength int) (string, error) {
-	validate := func(input string) error {
-		if len(input) < minumumLength {
-			return errors.New("Password must have more than 0 characters")
-		}
-		return nil
-	}
+// prompt wrt given options
+func PromptField(prompt promptui.Prompt) (string, error) {
 
-	prompt := promptui.Prompt{
-		Label:    "Password",
-		Validate: validate,
-		Mask:     '*',
-	}
-
-	pw, err := prompt.Run()
+	result, err := prompt.Run()
 
 	if err != nil {
 		fmt.Printf("Prompt failed %v\n", err)
 		return "", err
 	}
 
-	return pw, nil
+	return result, nil
 }
 
+// it returns y if it is ok otherwise n
 func PromptConfirm(label string) (string, error) {
 	prompt := promptui.Prompt{
 		Label:     label,
@@ -122,7 +143,7 @@ func PromptConfirm(label string) (string, error) {
 	return result, err
 }
 
-func replaceFirstAndLastElementOfEmailSlice(data []db.UserEmail) {
+func replaceFirstAndLastElementOfSlice(data []db.User) {
 	temp := data[0]
 	data[0] = data[len(data)-1]
 	data[len(data)-1] = temp
