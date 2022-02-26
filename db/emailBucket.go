@@ -1,17 +1,19 @@
 package db
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/boltdb/bolt"
 	"github.com/fatih/color"
+	"github.com/noctispine/gogmail/gservice"
 )
 
 const DEFAULT_EMAIL_BUCKET_NAME = "my_emails"
 
-type UserEmail struct {
-	Email    string
-	Password string
+type User struct {
+	EmailAddress string
+	Infos        gservice.OAuthInfos
 }
 
 // initialize email bucket
@@ -26,8 +28,14 @@ func InitEmailBucket() error {
 }
 
 // add mail-password pair to the bucket
-func AddUserEmail(userEmail UserEmail) error {
-	err := updateDB([]byte(DEFAULT_EMAIL_BUCKET_NAME), []byte(userEmail.Email), []byte(userEmail.Password))
+func AddUser(user User) error {
+	encoded, err := json.Marshal(user.Infos)
+
+	if err != nil {
+		return err
+	}
+
+	err = updateDB([]byte(DEFAULT_EMAIL_BUCKET_NAME), []byte(user.EmailAddress), []byte(encoded))
 	if err != nil {
 		return err
 	}
@@ -49,19 +57,19 @@ func RemoveUserEmail(key string) error {
 // change mail's password with given new password
 // actually it removes the pair assassociated with the given email address
 // then add a new pair with new Password
-func ChangeMailPassword(userEmail UserEmail, newPassword string) error {
+func ChangeEmailInfos(emailAddress string, newInfos gservice.OAuthInfos) error {
 
-	err := RemoveUserEmail(userEmail.Email)
+	err := RemoveUserEmail(emailAddress)
 	if err != nil {
 		return err
 	}
 
-	newUserEmail := UserEmail{
-		Email:    userEmail.Email,
-		Password: newPassword,
+	newUserEmail := User{
+		EmailAddress: emailAddress,
+		Infos:        newInfos,
 	}
 
-	err = AddUserEmail(newUserEmail)
+	err = AddUser(newUserEmail)
 	if err != nil {
 		return err
 	}
@@ -70,8 +78,8 @@ func ChangeMailPassword(userEmail UserEmail, newPassword string) error {
 }
 
 //
-func GetPassword(userEmail UserEmail) (string, int) {
-	val, len := queryDB([]byte(DEFAULT_EMAIL_BUCKET_NAME), []byte(userEmail.Email))
+func GetInfos(user User) (string, int) {
+	val, len := queryDB([]byte(DEFAULT_EMAIL_BUCKET_NAME), []byte(user.EmailAddress))
 	return string(val), len
 }
 
@@ -102,19 +110,27 @@ func IterateEmailBucket() error {
 	return nil
 }
 
-func MakeSliceFromEmailBucket() ([]UserEmail, error) {
+func MakeSliceFromUser() ([]User, error) {
 	// it should be at least 1 len because we add quit option
 	// no matter there is emails or not
-	emails := make([]UserEmail, 0, 10)
+	emails := make([]User, 1, 10)
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(DEFAULT_EMAIL_BUCKET_NAME))
 		c := b.Cursor()
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			userEmail := UserEmail{
-				Email:    string(k),
-				Password: string(v),
+			var userInfos gservice.OAuthInfos
+			err := json.Unmarshal(v, &userInfos)
+
+			if err != nil {
+				return err
 			}
-			emails = append(emails, userEmail)
+
+			user := User{
+				EmailAddress: string(k),
+				Infos:        userInfos,
+			}
+
+			emails = append(emails, user)
 		}
 
 		return nil

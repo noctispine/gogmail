@@ -8,21 +8,25 @@ import (
 	"fmt"
 	"log"
 
-	helper "github.com/noctispine/go-email-app/cmd/helpers"
-	"github.com/noctispine/go-email-app/db"
+	"github.com/manifoldco/promptui"
+	helper "github.com/noctispine/gogmail/cmd/helpers"
+	"github.com/noctispine/gogmail/db"
+	"github.com/noctispine/gogmail/gservice"
 	"github.com/spf13/cobra"
 )
 
 // update password using command line args
 func updateFromArgs(args []string) error {
 	var err error
-	for i := 0; i < len(args); i += 2 {
-		newUserEmail := db.UserEmail{
-			Email:    args[i],
-			Password: args[i+1],
+	for i := 0; i < len(args); i += 5 {
+		infos := gservice.OAuthInfos{
+			ClientID:     args[i+1],
+			ClientSecret: args[i+2],
+			RefreshToken: args[i+3],
+			AccessToken:  args[i+4],
 		}
 
-		err = db.ChangeMailPassword(newUserEmail, newUserEmail.Password)
+		err = db.ChangeEmailInfos(args[0], infos)
 		if err != nil {
 			return err
 		}
@@ -33,15 +37,14 @@ func updateFromArgs(args []string) error {
 
 // prompt emails, let the user select which user(s) update
 // then update selected user
-func promptAndUpdate(showPw bool, size int) error {
+func promptAndUpdate(showCredentials bool, size int) error {
 	var err error
-	var emails []db.UserEmail
+	var users []db.User
 	var quit bool
-	var pw string
 	var isOk string
 	// get emails from db and add quit option
-	emails, err = db.MakeSliceFromEmailBucket()
-	helper.AddQuitOptionToEmailSlice(emails)
+	users, err = db.MakeSliceFromUser()
+	helper.AddQuitOptionToEmailSlice(users)
 
 	if err != nil {
 		return err
@@ -50,7 +53,32 @@ func promptAndUpdate(showPw bool, size int) error {
 	quit = false
 	i := 0
 	for !quit {
-		promptSelect := helper.SelectEmail(emails, size, showPw)
+		var infos gservice.OAuthInfos
+		var clientID, clientSecret, refreshToken, AccessToken string
+		promptSelect := helper.SelectUser(users, size, showCredentials)
+
+		// set prompt options
+		promptClientID := promptui.Prompt{
+			Label: "Client ID",
+		}
+
+		promptClientSecret := promptui.Prompt{
+			Label:       "Client Secret",
+			Mask:        '*',
+			HideEntered: true,
+		}
+
+		promptRefreshToken := promptui.Prompt{
+			Label:       "Refresh Token",
+			Mask:        '*',
+			HideEntered: true,
+		}
+		promptAccessToken := promptui.Prompt{
+			Label:       "Access Token",
+			Mask:        '*',
+			HideEntered: true,
+		}
+
 		i, _, err = promptSelect.Run()
 		if err != nil {
 			return err
@@ -61,22 +89,59 @@ func promptAndUpdate(showPw bool, size int) error {
 			return nil
 		}
 
-		// prompt for new password
-		pw, err = helper.PromptPassword(1)
+		clientID, err = helper.PromptField(promptClientID)
 		if err != nil {
 			return err
 		}
 
-		label := fmt.Sprintf("Are you sure you want to change your password: %s", emails[i].Email)
+		clientSecret, err = helper.PromptField(promptClientSecret)
+		if err != nil {
+			return err
+		}
+
+		refreshToken, err = helper.PromptField(promptRefreshToken)
+		if err != nil {
+			return err
+		}
+
+		AccessToken, err = helper.PromptField(promptAccessToken)
+		if err != nil {
+			return err
+		}
+
+		// if user changed something mutate otherwise keep the
+		// original records
+		if len(clientID) > 0 {
+			infos.ClientID = clientID
+		} else {
+			infos.ClientID = users[i].Infos.ClientID
+		}
+		if len(clientSecret) > 0 {
+			infos.ClientSecret = clientSecret
+		} else {
+			infos.ClientSecret = users[i].Infos.ClientSecret
+		}
+		if len(refreshToken) > 0 {
+			infos.RefreshToken = refreshToken
+		} else {
+			infos.RefreshToken = users[i].Infos.RefreshToken
+		}
+		if len(AccessToken) > 0 {
+			infos.AccessToken = AccessToken
+		} else {
+			infos.AccessToken = users[i].Infos.AccessToken
+		}
+
+		label := fmt.Sprintf("Are you sure you want to change credentials for: %s", users[i].EmailAddress)
 
 		// confirm password change
 		isOk, err = helper.PromptConfirm(label)
 		if isOk == "y" {
-			err = db.ChangeMailPassword(emails[i], pw)
+			err = db.ChangeEmailInfos(users[i].EmailAddress, infos)
 			if err != nil {
 				return err
 			}
-			emails[i].Password = pw
+			users[i].Infos = infos
 		}
 
 	}
@@ -87,11 +152,11 @@ func promptAndUpdate(showPw bool, size int) error {
 // updateCmd represents the update command
 var updateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "update email address's password",
-	Long:  `update email address's password`,
+	Short: "update gmail oauth credentials",
+	Long:  `update gmail oauth credentials`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
-		var list, showPw bool
+		var list, showC bool
 		var size int
 
 		list, err = cmd.Flags().GetBool("list")
@@ -99,7 +164,7 @@ var updateCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		showPw, err = cmd.Flags().GetBool("password")
+		showC, err = cmd.Flags().GetBool("credentials")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -111,7 +176,7 @@ var updateCmd = &cobra.Command{
 
 		if list {
 			// prompt a list of emails to select and update
-			err = promptAndUpdate(showPw, size)
+			err = promptAndUpdate(showC, size)
 		} else {
 			// update using command line args directly
 			err = updateFromArgs(args)
@@ -127,7 +192,9 @@ func init() {
 	userCmd.AddCommand(updateCmd)
 
 	updateCmd.Flags().BoolP("list", "l", false, "prompt all registered emails")
-	updateCmd.Flags().BoolP("password", "p", false, "show emails with passwords, flag list must be enabled")
+
+	updateCmd.Flags().BoolP("credentials", "c", false, "list emails with credentials, it must be used with list flag")
+
 	updateCmd.Flags().IntP("size", "s", 5, "set list size, flag list must be enabled")
 	updateCmd.SetUsageTemplate(rootCmd.Name() + "Usage: user update [email1] [newPassword1] [email2] [newPassword2]... or user update [flags]\n" +
 		"\nFlags:\n" + updateCmd.Flags().FlagUsages())

@@ -4,7 +4,7 @@ import (
 	"log"
 	"testing"
 
-	util "github.com/noctispine/go-email-app/utils"
+	util "github.com/noctispine/gogmail/utils"
 	"github.com/stretchr/testify/require"
 )
 

@@ -8,29 +8,29 @@ import (
 	"errors"
 	"log"
 
-	helper "github.com/noctispine/go-email-app/cmd/helpers"
-	"github.com/noctispine/go-email-app/db"
+	helper "github.com/noctispine/gogmail/cmd/helpers"
+	"github.com/noctispine/gogmail/db"
 	"github.com/spf13/cobra"
 )
 
 // list
 
-func listAndRemoveEmails(showPw bool, size int) error {
+func listAndRemoveEmails(showC bool, size int) error {
 	// var all, tail, head bool
 	var err error
-	var emails []db.UserEmail
+	var emails []db.User
 
-	emails, err = db.MakeSliceFromEmailBucket()
+	emails, err = db.MakeSliceFromUser()
 	if err != nil {
 		return err
 	}
+
 	helper.AddQuitOptionToEmailSlice(emails)
 
 	quit := false
-
 	i := 0
 	for !quit {
-		selectPrompt := helper.SelectEmail(emails, size, showPw, i)
+		selectPrompt := helper.SelectUser(emails, size, showC, i)
 
 		i, _, err = selectPrompt.Run()
 		if err != nil {
@@ -42,13 +42,12 @@ func listAndRemoveEmails(showPw bool, size int) error {
 		if i == 0 {
 			quit = true
 		} else {
-			err = db.RemoveUserEmail(emails[i].Email)
+			err = db.RemoveUserEmail(emails[i].EmailAddress)
 			if err != nil {
 				return err
 			}
-			emails[i] = db.UserEmail{
-				Email:    "DELETED",
-				Password: "DELETED",
+			emails[i] = db.User{
+				EmailAddress: "DELETED",
 			}
 		}
 	}
@@ -59,7 +58,11 @@ func listAndRemoveEmails(showPw bool, size int) error {
 
 func removeEmailsFromArgs(args []string) error {
 	for _, arg := range args {
-		return db.RemoveUserEmail(arg)
+		err := db.RemoveUserEmail(arg)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	return nil
@@ -95,9 +98,9 @@ to quickly create a Cobra application.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		var (
-			size         int
-			showPw, list bool
-			err          error
+			size        int
+			showC, list bool
+			err         error
 		)
 
 		// get flags: size, password, list
@@ -111,7 +114,7 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 
-		showPw, err = cmd.Flags().GetBool("password")
+		showC, err = cmd.Flags().GetBool("credentials")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -121,7 +124,7 @@ to quickly create a Cobra application.`,
 		// otherwise if use directly wrote emails
 		// to command line args, delete those directly
 		if list {
-			err = listAndRemoveEmails(showPw, size)
+			err = listAndRemoveEmails(showC, size)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -139,10 +142,8 @@ to quickly create a Cobra application.`,
 
 func init() {
 	userCmd.AddCommand(removeCmd)
-	// removeCmd.Flags().Int64P("head", "e", 10, "list head, it should be used with list flag")
-	// removeCmd.Flags().Int64P("tail", "t", 10, "list tail, it should be used with list flag")
 	removeCmd.Flags().IntP("size", "s", 10, "page size, it must be used with list flag")
-	removeCmd.Flags().BoolP("password", "p", false, "list emails with passwords, it must be used with list flag")
+	removeCmd.Flags().BoolP("credentials", "c", false, "list emails with credentials, it must be used with list flag")
 	removeCmd.Flags().BoolP("list", "l", false, "prompt option to select emails that will be removed")
 	removeCmd.SetUsageTemplate(rootCmd.Name() + "Usage: user remove [email1] [email2] [email3...] or user remove [flags]\n" +
 		"\nFlags:\n" + removeCmd.Flags().FlagUsages())

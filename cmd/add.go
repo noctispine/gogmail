@@ -9,20 +9,28 @@ import (
 	"log"
 
 	"github.com/fatih/color"
-	helper "github.com/noctispine/go-email-app/cmd/helpers"
-	"github.com/noctispine/go-email-app/db"
+	"github.com/manifoldco/promptui"
+	helper "github.com/noctispine/gogmail/cmd/helpers"
+	"github.com/noctispine/gogmail/db"
+	"github.com/noctispine/gogmail/gservice"
 	"github.com/spf13/cobra"
 )
 
 // add emails from command line args (when flag secure == false)
 func addEmailsFromArgs(args []string) error {
-	for i := 0; i < len(args); i += 2 {
-		userEmail := db.UserEmail{
-			Email:    args[i],
-			Password: args[i+1],
+	for i := 0; i < len(args); i += 5 {
+		infos := gservice.OAuthInfos{
+			ClientID:     args[i+1],
+			ClientSecret: args[i+2],
+			RefreshToken: args[i+3],
+			AccessToken:  args[i+4],
+		}
+		user := db.User{
+			EmailAddress: args[i],
+			Infos:        infos,
 		}
 
-		err := db.AddUserEmail(userEmail)
+		err := db.AddUser(user)
 		if err != nil {
 			return err
 		}
@@ -34,20 +42,69 @@ func addEmailsFromArgs(args []string) error {
 // add emails when flag securce is enabled
 // it conceales email's password whiles user writing
 func addEmailsWithSecureFlag() error {
-	var userEmail db.UserEmail
+	var user db.User
+	var infos gservice.OAuthInfos
 	var err error
 
-	userEmail.Email, err = helper.PromptEmail()
+	// set prompt options
+	validate := func(input string) error {
+		if len(input) < 1 {
+			return errors.New("Must have more than 0 characters")
+		}
+		return nil
+	}
+
+	promptClientID := promptui.Prompt{
+		Label:    "Client ID",
+		Validate: validate,
+	}
+
+	promptClientSecret := promptui.Prompt{
+		Label:       "Client Secret",
+		Mask:        '*',
+		Validate:    validate,
+		HideEntered: true,
+	}
+
+	promptRefreshToken := promptui.Prompt{
+		Label:       "Refresh Token",
+		Mask:        '*',
+		HideEntered: true,
+	}
+	promptAccessToken := promptui.Prompt{
+		Label:       "Access Token",
+		Mask:        '*',
+		HideEntered: true,
+	}
+
+	user.EmailAddress, err = helper.PromptEmail()
 	if err != nil {
 		return err
 	}
 
-	userEmail.Password, err = helper.PromptPassword(1)
+	infos.ClientID, err = helper.PromptField(promptClientID)
 	if err != nil {
 		return err
 	}
 
-	err = db.AddUserEmail(userEmail)
+	infos.ClientSecret, err = helper.PromptField(promptClientSecret)
+	if err != nil {
+		return err
+	}
+
+	infos.RefreshToken, err = helper.PromptField(promptRefreshToken)
+	if err != nil {
+		return err
+	}
+
+	infos.AccessToken, err = helper.PromptField(promptAccessToken)
+	if err != nil {
+		return err
+	}
+
+	user.Infos = infos
+
+	err = db.AddUser(user)
 	if err != nil {
 		return err
 	}
@@ -57,21 +114,21 @@ func addEmailsWithSecureFlag() error {
 
 // addCmd represents the add command
 var addCmd = &cobra.Command{
-	Use:   "add [email] [password]",
-	Short: "Add email and password",
-	Long: `Add emails and passwords. It is possible to
-	add multiple email and password combinations at once
-	eg: add email1 password1 email2 password2...
-	Also it is possible to conceal password with enabling
+	Use:   "add [email] [client_id] [client_secret] [refresh_token] [access_token]... or add [flags]",
+	Short: "Add email name and client credentials ",
+	Long: `Add emails and client credentials. It is possible to
+	add multiple combinations at once
+	Also it is possible to conceal client_id with enabling
 	secure flag (but user can add only one email).`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		sec, err := cmd.Flags().GetBool("secure")
+		log.Println(len(args))
 		if err != nil {
 			return errors.New("flag secure cannot parsed")
 		}
 		if !sec && len(args) == 0 {
 			return errors.New("please provide email and password")
-		} else if (!sec && (len(args) != 0)) && (len(args)%2 == 1) {
+		} else if (!sec && (len(args) != 0)) && (len(args)%5 != 0) {
 			return errors.New("arguments length should be even number")
 		}
 
@@ -103,6 +160,6 @@ var addCmd = &cobra.Command{
 func init() {
 	userCmd.AddCommand(addCmd)
 	addCmd.Flags().BoolP("secure", "s", false, "hide your password when adding")
-	addCmd.SetUsageTemplate(rootCmd.Name() + "Usage: user add [email1] [password1] [email2] [password2]...\n" +
+	addCmd.SetUsageTemplate(rootCmd.Name() + " add [email] [client_id] [client_secret] [refresh_token] [access_token]... or add [flags]\n" +
 		"\nFlags:\n" + addCmd.Flags().FlagUsages())
 }
