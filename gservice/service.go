@@ -4,8 +4,11 @@ package gservice
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -76,6 +79,91 @@ func SendEmailOAUTH2(email Email) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func SendEmailWithAttachmentOAUTH2(email Email, fileDir string, fileName string) (bool, error) {
+	var message gmail.Message
+
+	fileBytes, err := ioutil.ReadFile(fileDir + fileName)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+
+	fileMIMEType := http.DetectContentType(fileBytes)
+
+	fileData := base64.StdEncoding.EncodeToString(fileBytes)
+
+	boundary := randStr(32, "alphanum")
+
+	messageBody := []byte("Content-Type: multipart/mixed; boundary=" + boundary + " \n" +
+		"MIME-Version: 1.0\n" +
+		"to: " + email.To + "\n" +
+		"subject: " + email.Subject + "\n\n" +
+
+		"--" + boundary + "\n" +
+		"Content-Type: text/plain; charset=" + string('"') + "UTF-8" + string('"') + "\n" +
+		"MIME-Version: 1.0\n" +
+		"Content-Transfer-Encoding: 7bit\n\n" +
+		email.Body + "\n\n" +
+		"--" + boundary + "\n" +
+
+		"Content-Type: " + fileMIMEType + "; name=" + string('"') + fileName + string('"') + " \n" +
+		"MIME-Version: 1.0\n" +
+		"Content-Transfer-Encoding: base64\n" +
+		"Content-Disposition: attachment; filename=" + string('"') + fileName + string('"') + " \n\n" +
+		chunkSplit(fileData, 76, "\n") +
+		"--" + boundary + "--")
+
+	message.Raw = base64.URLEncoding.EncodeToString(messageBody)
+
+	// Send the message
+	_, err = GmailService.Users.Messages.Send("me", &message).Do()
+	if err != nil {
+		log.Printf("Error: %v", err)
+	}
+	return true, nil
+}
+func randStr(strSize int, randType string) string {
+
+	var dictionary string
+
+	if randType == "alphanum" {
+		dictionary = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	}
+
+	var strBytes = make([]byte, strSize)
+	_, _ = rand.Read(strBytes)
+	for k, v := range strBytes {
+		strBytes[k] = dictionary[v%byte(len(dictionary))]
+	}
+	return string(strBytes)
+}
+
+func chunkSplit(body string, limit int, end string) string {
+	var charSlice []rune
+
+	// push characters to slice
+	for _, char := range body {
+		charSlice = append(charSlice, char)
+	}
+
+	var result = ""
+
+	for len(charSlice) >= 1 {
+		// convert slice/array back to string
+		// but insert end at specified limit
+		result = result + string(charSlice[:limit]) + end
+
+		// discard the elements that were copied over to result
+		charSlice = charSlice[limit:]
+
+		// change the limit
+		// to cater for the last few words in
+		if len(charSlice) < limit {
+			limit = len(charSlice)
+		}
+	}
+	return result
 }
 
 // func parseTemplate(templateFileName string, data interface{}) (string, error) {

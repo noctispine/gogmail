@@ -11,7 +11,11 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
+	"time"
 
+	"github.com/briandowns/spinner"
+	"github.com/fatih/color"
 	"github.com/manifoldco/promptui"
 	helper "github.com/noctispine/gogmail/cmd/helpers"
 	"github.com/noctispine/gogmail/db"
@@ -22,7 +26,7 @@ import (
 // if there is authenticated user first try to email
 // if token has been expired then try to relogin
 // after try to send email again
-func sendEmail(email gservice.Email, userInfos gservice.OAuthInfos) error {
+func sendEmail(userInfos gservice.OAuthInfos, email gservice.Email) error {
 	var err error
 
 	if gservice.GmailService != nil {
@@ -46,6 +50,33 @@ func sendEmail(email gservice.Email, userInfos gservice.OAuthInfos) error {
 	return nil
 }
 
+// send email with provided file
+func sendEmailWithAttachment(userInfos gservice.OAuthInfos, email gservice.Email, fileDir string, fileName string) error {
+	var err error
+	if gservice.GmailService != nil {
+		_, err = gservice.SendEmailWithAttachmentOAUTH2(email, fileDir, fileName)
+		if err != nil {
+			gservice.OAuthGmailService(userInfos)
+			_, err = gservice.SendEmailWithAttachmentOAUTH2(email, fileDir, fileName)
+			if err != nil {
+				return err
+			}
+		}
+
+	} else {
+		gservice.OAuthGmailService(userInfos)
+		_, err = gservice.SendEmailWithAttachmentOAUTH2(email, fileDir, fileName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// get email body from user
+// new lines will be included
+// to exit press q then enter in empty line
 func getEmailBody() (string, error) {
 	var text string
 	scn := bufio.NewScanner(os.Stdin)
@@ -82,6 +113,14 @@ func getEmailBody() (string, error) {
 	return text, nil
 }
 
+// returns file dir and file name
+func splitFilePath(path string) (string, string) {
+	indexOfLastSlash := strings.LastIndex(path, "/")
+	fileDir := path[:indexOfLastSlash]
+	fileName := path[indexOfLastSlash:]
+	return fileDir, fileName
+}
+
 // sendCmd represents the send command
 var sendCmd = &cobra.Command{
 	Use:   "send",
@@ -93,8 +132,8 @@ var sendCmd = &cobra.Command{
 		var to, subject, body string
 		var doesSend string
 		var size int
-		var textFilePath string
-		var showCredentials bool
+		var textFilePath, attach string
+		var showCredentials, list bool
 
 		showCredentials, err = cmd.Flags().GetBool("credentials")
 		if err != nil {
@@ -107,6 +146,16 @@ var sendCmd = &cobra.Command{
 		}
 
 		textFilePath, err = cmd.Flags().GetString("file")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		attach, err = cmd.Flags().GetString("attach")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		list, err = cmd.Flags().GetBool("list_and_attach")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -183,18 +232,52 @@ var sendCmd = &cobra.Command{
 
 			if doesSend == "y" {
 				var email gservice.Email
-
 				email.To = to
 				email.Subject = subject
 				email.Body = body
 				fmt.Println(body)
+				// send email with attachment
+				if attach != "" || list {
+					var fileDir string
+					var fileName string
 
-				sendEmail(email, users[userIndex].Infos)
+					spin := spinner.New(spinner.CharSets[1], 100*time.Millisecond)
+
+					if list {
+						attach, err = helper.PromptSelectDir()
+						if err != nil {
+							log.Fatal(err)
+						}
+
+						fileDir, fileName = splitFilePath(attach)
+
+						fmt.Println("Start to upload the file")
+						spin.Start()
+						sendEmailWithAttachment(users[userIndex].Infos, email, fileDir, fileName)
+						spin.Stop()
+						fmt.Println("File has been uploaded")
+					} else {
+						fileDir, fileName = splitFilePath(attach)
+
+						fmt.Println("Start to upload the file")
+						spin.Start()
+						sendEmailWithAttachment(users[userIndex].Infos, email, fileDir, fileName)
+						spin.Stop()
+						fmt.Println("File has been uploaded")
+
+					}
+				} else {
+					err = sendEmail(users[userIndex].Infos, email)
+					if err != nil {
+						log.Fatal(err)
+					}
+				}
+
+				color.Green("Email is sent successfully.")
 
 			}
 		}
 
-		// fmt.Println("send called")
 	},
 }
 
@@ -204,5 +287,6 @@ func init() {
 	sendCmd.Flags().StringP("file", "f", "", "text file for the body of the email")
 	sendCmd.Flags().BoolP("credentials", "c", false, "show credentials")
 	sendCmd.Flags().IntP("size", "s", 5, "prompt email list size")
-
+	sendCmd.Flags().StringP("attach", "a", "", "attach a file (provide a file path)")
+	sendCmd.Flags().BoolP("list_and_attach", "l", false, "list dir and select a file for attachment")
 }
