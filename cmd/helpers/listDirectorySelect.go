@@ -2,44 +2,37 @@ package helper
 
 import (
 	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
+	"io/ioutil"
 )
 
 func MakeSliceFromDir(dirPath string) ([]string, error) {
-	files, err := filePathWalkDir(dirPath)
+	var fileNames []string
+	files, err := ioutil.ReadDir(dirPath)
+
+	if err != nil {
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	files = append(files, "../")
-	err = stringSliceReplace(files, len(files)-1, 1)
+	for _, f := range files {
+		fileNames = append(fileNames, f.Name())
+	}
+
+	fileNames = append(fileNames, "../")
+	err = stringSliceReplace(fileNames, len(fileNames)-1, 1)
 	if err != nil {
 		return nil, err
 	}
 
-	files = append(files, "Quit")
-	err = stringSliceReplace(files, len(files)-1, 0)
+	fileNames = append(fileNames, "Quit")
+	err = stringSliceReplace(fileNames, len(fileNames)-1, 0)
 	if err != nil {
 		return nil, err
 	}
-	for _, file := range files {
-		fmt.Println(file)
-	}
 
-	return files, nil
-}
-
-func filePathWalkDir(root string) ([]string, error) {
-	var files []string
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			files = append(files, path)
-		}
-		return nil
-	})
-	return files, err
+	return fileNames, nil
 }
 
 func stringSliceReplace(slice []string, pos1, pos2 int) error {
@@ -49,6 +42,5 @@ func stringSliceReplace(slice []string, pos1, pos2 int) error {
 	temp := slice[pos1]
 	slice[pos1] = slice[pos2]
 	slice[pos2] = temp
-
 	return nil
 }
