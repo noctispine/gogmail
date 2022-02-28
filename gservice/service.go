@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -30,6 +31,7 @@ type OAuthInfos struct {
 
 type Email struct {
 	To      string
+	Cc      []string
 	Subject string
 	Body    string
 }
@@ -64,10 +66,15 @@ func SendEmailOAUTH2(email Email) (bool, error) {
 	var message gmail.Message
 	var err error
 
+	cc := ""
+
 	emailTo := "To: " + email.To + "\r\n"
 	subject := "Subject: " + email.Subject + "\n"
 	mime := "MIME-version: 1.0;\nContent-Type: text/plain; charset=\"UTF-8\";\n\n"
-	msg := []byte(emailTo + subject + mime + "\n" + email.Body)
+	if len(email.Cc) > 0 {
+		cc = "cc: " + strings.Join(email.Cc, ", ") + "\n"
+	}
+	msg := []byte(emailTo + cc + subject + mime + "\n" + email.Body)
 
 	message.Raw = base64.URLEncoding.EncodeToString(msg)
 
@@ -98,7 +105,8 @@ func SendEmailWithAttachmentOAUTH2(email Email, fileDir string, fileName string)
 	messageBody := []byte("Content-Type: multipart/mixed; boundary=" + boundary + " \n" +
 		"MIME-Version: 1.0\n" +
 		"to: " + email.To + "\n" +
-		"subject: " + email.Subject + "\n\n" +
+		"subject: " + email.Subject + "\n" +
+		"cc: " + strings.Join(email.Cc, ", ") + "\n\n" +
 
 		"--" + boundary + "\n" +
 		"Content-Type: text/plain; charset=" + string('"') + "UTF-8" + string('"') + "\n" +

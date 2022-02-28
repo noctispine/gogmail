@@ -130,10 +130,11 @@ var sendCmd = &cobra.Command{
 		var users []db.User
 		var err error
 		var to, subject, body string
+		var ccSlice []string
 		var doesSend string
 		var size int
 		var textFilePath, attach string
-		var showCredentials, list bool
+		var showCredentials, list, cc bool
 
 		showCredentials, err = cmd.Flags().GetBool("credentials")
 		if err != nil {
@@ -160,6 +161,11 @@ var sendCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
+		cc, err = cmd.Flags().GetBool("cc")
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		users, err = db.MakeSliceFromUser()
 		if err != nil {
 			log.Fatal(err)
@@ -171,7 +177,6 @@ var sendCmd = &cobra.Command{
 		var userIndex int
 
 		// set prompt options
-
 		validate := func(input string) error {
 			if len(input) < 1 {
 				return errors.New("Must have more than 0 characters")
@@ -186,6 +191,10 @@ var sendCmd = &cobra.Command{
 
 		promptSubject := promptui.Prompt{
 			Label: "Subject",
+		}
+
+		promptCc := promptui.Prompt{
+			Label: "Add Email for CC",
 		}
 
 		// promptBody := promptui.Prompt{
@@ -209,6 +218,21 @@ var sendCmd = &cobra.Command{
 				log.Fatal(err)
 			}
 
+			// ask emails from user to add CC
+			if cc {
+				var ccEmail string
+				quitCc := ""
+				for quitCc != "n" {
+					ccEmail, err = helper.PromptField(promptCc)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					ccSlice = append(ccSlice, ccEmail)
+					quitCc, _ = helper.PromptConfirm("Do you want to add more emails")
+				}
+			}
+
 			// if textFilePath is defined, email body should be text file's content
 			// otherwise take body via stdin
 			if textFilePath != "" {
@@ -217,15 +241,14 @@ var sendCmd = &cobra.Command{
 				if err != nil {
 					log.Fatal(err)
 				}
-				body = string(b)
 
+				body = string(b)
 			} else {
 				// body, err = helper.PromptField(promptBody)
 				body, err = getEmailBody()
 				if err != nil {
 					log.Fatal(err)
 				}
-
 			}
 
 			doesSend, err = helper.PromptConfirm("are you sure to send this email?")
@@ -235,6 +258,7 @@ var sendCmd = &cobra.Command{
 				email.To = to
 				email.Subject = subject
 				email.Body = body
+				email.Cc = ccSlice
 				fmt.Println(body)
 				// send email with attachment
 				if attach != "" || list {
@@ -264,7 +288,6 @@ var sendCmd = &cobra.Command{
 						sendEmailWithAttachment(users[userIndex].Infos, email, fileDir, fileName)
 						spin.Stop()
 						fmt.Println("File has been uploaded")
-
 					}
 				} else {
 					err = sendEmail(users[userIndex].Infos, email)
@@ -289,4 +312,5 @@ func init() {
 	sendCmd.Flags().IntP("size", "s", 5, "prompt email list size")
 	sendCmd.Flags().StringP("attach", "a", "", "attach a file (provide a file path)")
 	sendCmd.Flags().BoolP("list_and_attach", "l", false, "list dir and select a file for attachment")
+	sendCmd.Flags().BoolP("cc", "m", false, "enable cc")
 }
