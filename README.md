@@ -1,5 +1,5 @@
 # Gogmail
-Record your gmail addresses, close contact list and prewritten email bodies. Send emails with using gmail api via oauth2
+Record your Gmail addresses, close contact list, and prewritten email bodies. Send emails using Gmail API via oauth2
 
 ## Task List
 - [X] CC option to send command
@@ -21,7 +21,7 @@ User Command
 ![user_list](/example_gifs/user_list.gif)
 
 - Update User
-![user_update](/example_gifs/user_update.gif.gif)
+![user_update](/example_gifs/user_update.gif)
 
 
 # Send Command
