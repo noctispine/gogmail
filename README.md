@@ -2,14 +2,19 @@
 Record your Gmail addresses, close contact list, and prewritten email bodies. Send emails using Gmail API via oauth2
 
 ## Task List
-- [X] CC option to send command
+- [X] ~~CC option to send command~~
 - [ ] Draft command to let the user create email bodies
 - [ ] Contact command to add friends' emails
+
+***
 
 ## Usage
 **user** command: it handles with your emails
 *send** command: 
-User Command
+
+---
+
+# User Command
 
 - Add User with prompt option
 ![user_add](/example_gifs/user_add.gif)
@@ -23,6 +28,7 @@ User Command
 - Update User
 ![user_update](/example_gifs/user_update.gif    )
 
+---
 
 # Send Command
 
