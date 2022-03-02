@@ -21,7 +21,7 @@ User Command
 ![user_list](/example_gifs/user_list.gif)
 
 - Update User
-![user_update](/example_gifs/user_update.gif)
+![user_update](/example_gifs/user_update.gif    )
 
 
 # Send Command
